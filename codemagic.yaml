@@ -6,7 +6,6 @@ workflows:
     working_directory: .
     environment:
       xcode: latest
-      cocoapods: "false"
     triggering:
       events:
         - push
