@@ -17,10 +17,10 @@ workflows:
       - name: Clean and Setup Local Folders
         script: |
           set -euo pipefail
-          rm -rf FILES/output FILES/rahhh_SideStore.ipa FILES/rahhh_SideStore.ipa.sha256 rahhh_SideStore.ipa rahhh_SideStore.ipa.sha256
-          mkdir -p FILES/output/Payload/rahhh.app
+          rm -rf FILES/output rahhhhhh_Nightly.ipa rahhhhhh_Nightly.ipa.sha256
+          mkdir -p FILES/output/Payload/rahhhhhh.app
 
-      - name: Compile and Package Unsigned SwiftUI App
+      - name: Compile and Package Unsigned Swift App
         script: |
           set -euo pipefail
           chmod +x FILES/build_ipa.sh
@@ -34,8 +34,55 @@ workflows:
           ls -la FILES || true
           ls -la FILES/output || true
 
+      - name: Publish to GitHub Releases and trigger dispatch
+        script: |
+          set -euo pipefail
+
+          if [ -z "${GITHUB_TOKEN:-}" ]; then
+            echo "GITHUB_TOKEN not set; cannot publish release or dispatch workflow"
+            exit 1
+          fi
+
+          REPO="Neguy-spec/yes"
+          TAG="nightly-$(date +%Y%m%d-%H%M%S)"
+          IPA_FILE="rahhhhhh_Nightly.ipa"
+          SHA_FILE="rahhhhhh_Nightly.ipa.sha256"
+
+          echo "Creating GitHub release $TAG"
+
+          RELEASE_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\": \"$TAG\", \"name\": \"$TAG\", \"prerelease\": true}" \
+            "https://api.github.com/repos/$REPO/releases")
+
+          UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | grep upload_url | cut -d '"' -f 4 | sed 's/{?name,label}//')
+
+          echo "Uploading IPA..."
+          curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"$IPA_FILE" \
+            "$UPLOAD_URL?name=$IPA_FILE"
+
+          echo "Uploading SHA256..."
+          curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"$SHA_FILE" \
+            "$UPLOAD_URL?name=$SHA_FILE"
+
+          echo "Triggering repository_dispatch event..."
+          curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d '{"event_type": "nightly_build_complete"}' \
+            "https://api.github.com/repos/$REPO/dispatches"
+
+          echo "GitHub Release + Dispatch complete"
+
     artifacts:
-      - rahhh_SideStore.ipa
-      - rahhh_SideStore.ipa.sha256
+      - rahhhhhh_Nightly.ipa
+      - rahhhhhh_Nightly.ipa.sha256
       - FILES/output/*.ipa
       - FILES/output/*.sha256
