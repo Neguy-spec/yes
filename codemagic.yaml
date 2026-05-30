@@ -6,6 +6,8 @@ workflows:
     working_directory: .
     environment:
       xcode: latest
+      groups:
+        - token
       vars:
         GITHUB_TOKEN: $GITHUB_TOKEN
 
@@ -32,22 +34,9 @@ workflows:
         script: |
           set -euo pipefail
           echo "PWD: $(pwd)"
-          echo "Listing repo root contents:"
-          ls -la || true
-          echo "Listing FILES folder contents:"
+          ls -la
           ls -la FILES || true
-          echo "Listing output folder contents:"
           ls -la FILES/output || true
-          [ -f rahhh_SideStore.ipa ] && echo "Found rahhh_SideStore.ipa at repo root"
-          [ -f rahhh_SideStore.ipa.sha256 ] && echo "Found rahhh_SideStore.ipa.sha256 at repo root"
-          [ -f FILES/rahhh_SideStore.ipa ] && echo "Found FILES/rahhh_SideStore.ipa"
-          [ -f FILES/rahhh_SideStore.ipa.sha256 ] && echo "Found FILES/rahhh_SideStore.ipa.sha256"
-
-      - name: Debug artifact globs
-        script: |
-          set -euo pipefail
-          echo "Checking exact artifact glob matches"
-          find . -name "*.ipa" -o -name "*.sha256" -print || true
 
       - name: Debug token
         script: |
@@ -58,7 +47,7 @@ workflows:
           set -euo pipefail
 
           if [ -z "${GITHUB_TOKEN:-}" ]; then
-            echo "GITHUB_TOKEN not set; cannot publish release"
+            echo "GITHUB_TOKEN not set"
             exit 1
           fi
 
@@ -68,19 +57,9 @@ workflows:
           IPA_FILE="rahhh_SideStore.ipa"
           SHA_FILE="rahhh_SideStore.ipa.sha256"
 
-          if [ ! -f "$IPA_FILE" ]; then
-            echo "IPA file missing: $IPA_FILE"
-            exit 1
-          fi
-
-          if [ ! -f "$SHA_FILE" ]; then
-            echo "SHA256 file missing: $SHA_FILE"
-            exit 1
-          fi
-
           USER_LOGIN=$(curl -sSL -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user | python3 -c "import sys,json;print(json.load(sys.stdin).get('login',''))")
           if [ -z "$USER_LOGIN" ]; then
-            echo "Invalid or unauthorized GITHUB_TOKEN"
+            echo "Invalid GitHub token"
             exit 1
           fi
 
@@ -91,11 +70,6 @@ workflows:
             "$REPO_API/releases")
 
           UPLOAD_URL=$(echo "$CREATE_RESP" | python3 -c "import sys,json;print(json.load(sys.stdin).get('upload_url','').split('{')[0])")
-
-          if [ -z "$UPLOAD_URL" ]; then
-            echo "Failed to create release: $CREATE_RESP"
-            exit 1
-          fi
 
           curl -sSL -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
@@ -114,8 +88,6 @@ workflows:
             -H "Accept: application/vnd.github+json" \
             -d "{\"event_type\":\"codemagic-nightly\",\"client_payload\":{\"tag\":\"$TAG_NAME\"}}" \
             "$REPO_API/dispatches"
-
-          echo "Nightly release published successfully."
 
     artifacts:
       - rahhh_SideStore.ipa
