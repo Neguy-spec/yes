@@ -6,11 +6,15 @@ workflows:
     working_directory: .
     environment:
       xcode: latest
+      vars:
+        GITHUB_TOKEN: $GITHUB_TOKEN
+
     triggering:
       events:
         - push
       branch_patterns:
         - pattern: main
+
     scripts:
       - name: Clean and Setup Local Folders
         script: |
@@ -48,7 +52,6 @@ workflows:
           find . \( -name "*.ipa" -o -name "*.sha256" \) -print || true
 
       - name: Publish nightly GitHub release and trigger dispatch
-
         script: |
           set -euo pipefail
           if [ -z "${GITHUB_TOKEN:-}" ]; then
@@ -59,7 +62,6 @@ workflows:
           TAG_NAME="nightly-$(date +%Y%m%d%H%M%S)"
           REPO_API="https://api.github.com/repos/Neguy-spec/yes"
 
-          # validate token by querying the authenticated user
           USER_LOGIN=$(curl -sSL -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/user" | python3 -c "import sys,json;obj=json.load(sys.stdin);print(obj.get('login',''))")
           if [ -z "$USER_LOGIN" ]; then
             echo "GITHUB_TOKEN invalid or lacks permissions" >&2
@@ -72,7 +74,9 @@ workflows:
             echo "Failed to create release: $CREATE_RESP" >&2
             exit 1
           fi
+
           curl -sSL -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Content-Type: application/zip" --data-binary @SideStore_Nightly.ipa "$UPLOAD_URL?name=SideStore_Nightly.ipa"
+
           if [ -f SideStore_Nightly.ipa.sha256 ]; then
             curl -sSL -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Content-Type: text/plain" --data-binary @SideStore_Nightly.ipa.sha256 "$UPLOAD_URL?name=SideStore_Nightly.ipa.sha256"
           else
@@ -89,3 +93,4 @@ workflows:
       - FILES/rahhh_SideStore.ipa
       - FILES/rahhh_SideStore.ipa.sha256
       - FILES/output/*.ipa
+      - FILES/output/*.sha256 
