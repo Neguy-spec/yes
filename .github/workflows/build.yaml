@@ -67,22 +67,22 @@ EOF
       - name: Validate downloaded assets
         run: |
           set -euo pipefail
-          for f in rahhh_SideStore.ipa rahhh_SideStore.ipa.sha256; do
+          for f in SideStore_Nightly.ipa SideStore_Nightly.ipa.sha256; do
             if [ ! -f "$f" ]; then
               echo "Required asset $f is missing" >&2
               exit 1
             fi
           done
-          unzip -t rahhh_SideStore.ipa
-          sha256sum -c rahhh_SideStore.ipa.sha256
+          unzip -t SideStore_Nightly.ipa
+          sha256sum -c SideStore_Nightly.ipa.sha256
 
       - name: Upload artifacts to Actions
         uses: actions/upload-artifact@v4
         with:
-          name: rahhh_SideStore
+          name: SideStore_Nightly
           path: |
-            rahhh_SideStore.ipa
-            rahhh_SideStore.ipa.sha256
+            SideStore_Nightly.ipa
+            SideStore_Nightly.ipa.sha256
 
       - name: Create nightly GitHub release
         env:
@@ -99,5 +99,5 @@ EOF
             echo "Failed to create nightly release: $CREATE_RELEASE" >&2
             exit 1
           fi
-          curl -sSL -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/zip" --data-binary @rahhh_SideStore.ipa "$UPLOAD_URL?name=rahhh_SideStore.ipa"
-          curl -sSL -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: text/plain" --data-binary @rahhh_SideStore.ipa.sha256 "$UPLOAD_URL?name=rahhh_SideStore.ipa.sha256"
+          curl -sSL -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/zip" --data-binary @SideStore_Nightly.ipa "$UPLOAD_URL?name=SideStore_Nightly.ipa"
+          curl -sSL -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: text/plain" --data-binary @SideStore_Nightly.ipa.sha256 "$UPLOAD_URL?name=SideStore_Nightly.ipa.sha256"

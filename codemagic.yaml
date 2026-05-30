@@ -1,6 +1,6 @@
 workflows:
-  ios-app-sidestore:
-    name: Unsigned iOS SideStore Build
+  nightly-build-ios:
+    name: Nightly Build iOS
     instance_type: mac_mini_m2
     max_build_duration: 60
     working_directory: .
@@ -47,17 +47,24 @@ workflows:
           echo "Matching all .ipa/.sha256 files in repo"
           find . \( -name "*.ipa" -o -name "*.sha256" \) -print || true
 
-      - name: Publish to GitHub Releases and trigger dispatch
+      - name: Publish nightly GitHub release and trigger dispatch
 
         script: |
           set -euo pipefail
           if [ -z "${GITHUB_TOKEN:-}" ]; then
-            echo "GITHUB_TOKEN not set; cannot publish release or dispatch workflow" >&2
-            exit 1
+            echo "GITHUB_TOKEN not set; skipping GitHub release publish and dispatch"
+            exit 0
           fi
 
           TAG_NAME="nightly-$(date +%Y%m%d%H%M%S)"
           REPO_API="https://api.github.com/repos/Neguy-spec/yes"
+
+          # validate token by querying the authenticated user
+          USER_LOGIN=$(curl -sSL -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/user" | python3 -c "import sys,json;obj=json.load(sys.stdin);print(obj.get('login',''))")
+          if [ -z "$USER_LOGIN" ]; then
+            echo "GITHUB_TOKEN invalid or lacks permissions" >&2
+            exit 1
+          fi
 
           CREATE_RESP=$(curl -s -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -d "{\"tag_name\":\"$TAG_NAME\",\"name\":\"Nightly Release $TAG_NAME\",\"body\":\"Nightly unsigned IPA from Codemagic\",\"draft\":false,\"prerelease\":false}" "$REPO_API/releases")
           UPLOAD_URL=$(echo "$CREATE_RESP" | python3 -c "import sys,json;obj=json.load(sys.stdin);print(obj.get('upload_url','').split('{')[0] if obj.get('upload_url') else '')")
@@ -65,16 +72,15 @@ workflows:
             echo "Failed to create release: $CREATE_RESP" >&2
             exit 1
           fi
-
-          curl -sSL -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Content-Type: application/zip" --data-binary @rahhh_SideStore.ipa "$UPLOAD_URL?name=rahhh_SideStore.ipa"
-          if [ -f rahhh_SideStore.ipa.sha256 ]; then
-            curl -sSL -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Content-Type: text/plain" --data-binary @rahhh_SideStore.ipa.sha256 "$UPLOAD_URL?name=rahhh_SideStore.ipa.sha256"
+          curl -sSL -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Content-Type: application/zip" --data-binary @SideStore_Nightly.ipa "$UPLOAD_URL?name=SideStore_Nightly.ipa"
+          if [ -f SideStore_Nightly.ipa.sha256 ]; then
+            curl -sSL -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Content-Type: text/plain" --data-binary @SideStore_Nightly.ipa.sha256 "$UPLOAD_URL?name=SideStore_Nightly.ipa.sha256"
           else
-            echo "Checksum file rahhh_SideStore.ipa.sha256 missing" >&2
+            echo "Checksum file SideStore_Nightly.ipa.sha256 missing" >&2
             exit 1
           fi
 
-          DISPATCH_RESP=$(curl -sSL -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -d "{\"event_type\":\"codemagic-ipa-upload\",\"client_payload\":{\"tag_name\":\"$TAG_NAME\",\"asset_names\":[\"rahhh_SideStore.ipa\",\"rahhh_SideStore.ipa.sha256\"]}}" "$REPO_API/dispatches")
+          DISPATCH_RESP=$(curl -sSL -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -d "{\"event_type\":\"codemagic-ipa-upload\",\"client_payload\":{\"tag_name\":\"$TAG_NAME\",\"asset_names\":[\"SideStore_Nightly.ipa\",\"SideStore_Nightly.ipa.sha256\"]}}" "$REPO_API/dispatches")
           echo "Dispatch response: $DISPATCH_RESP"
 
     artifacts:

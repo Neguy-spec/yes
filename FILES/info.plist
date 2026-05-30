@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleIdentifier</key>
-  <string>com.neguyspec.yes</string>
+  <string>com.neguyspec.sidestore</string>
   <key>CFBundleName</key>
-  <string>rahhh</string>
+  <string>SideStore</string>
   <key>CFBundleDisplayName</key>
-  <string>Test App</string>
+  <string>SideStore</string>
   <key>CFBundleVersion</key>
   <string>1</string>
   <key>CFBundleShortVersionString</key>

@@ -11,7 +11,7 @@ struct RahhhApp: App {
 
 struct ContentView: View {
     var body: some View {
-        Text("Hello, SideStore!")
+        Text("wsp danu")
             .padding()
     }
 }
