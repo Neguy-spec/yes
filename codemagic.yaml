@@ -51,6 +51,11 @@ workflows:
           echo "Matching all .ipa/.sha256 files in repo"
           find . \( -name "*.ipa" -o -name "*.sha256" \) -print || true
 
+      # ⭐ ADDED TEST STEP HERE
+      - name: Debug token
+        script: |
+          echo "Token length: ${#GITHUB_TOKEN}"
+
       - name: Publish nightly GitHub release and trigger dispatch
         script: |
           set -euo pipefail
@@ -93,4 +98,4 @@ workflows:
       - FILES/rahhh_SideStore.ipa
       - FILES/rahhh_SideStore.ipa.sha256
       - FILES/output/*.ipa
-      - FILES/output/*.sha256 
+      - FILES/output/*.sha256
