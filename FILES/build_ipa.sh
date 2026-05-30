@@ -6,10 +6,12 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$SCRIPT_DIR"
 
 echo "Starting build_ipa.sh in $(pwd)"
-
 echo "Repo root is $REPO_ROOT"
 
-mkdir -p output/Payload/SideStore.app
+APP_NAME="rahhhhhh"
+IPA_NAME="rahhhhhh_Nightly.ipa"
+
+mkdir -p output/Payload/${APP_NAME}.app
 
 SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)
 if [ -z "$SDK_PATH" ]; then
@@ -18,7 +20,6 @@ if [ -z "$SDK_PATH" ]; then
 fi
 
 FRAMEWORKS_PATH="$SDK_PATH/System/Library/Frameworks"
-
 echo "SDK_PATH=$SDK_PATH"
 
 SOURCE_FILE="rahhh.swift"
@@ -28,58 +29,59 @@ if [ ! -f "$SOURCE_FILE" ]; then
   exit 1
 fi
 
+# Compile binary named rahhhhhh
 swiftc -sdk "$SDK_PATH" \
        -target arm64-apple-ios15.0 \
        -F "$FRAMEWORKS_PATH" \
        -parse-as-library \
-      -O -o output/Payload/SideStore.app/SideStore \
+       -O -o output/Payload/${APP_NAME}.app/${APP_NAME} \
        "$SOURCE_FILE"
 
+# Copy Info.plist
 if [ -f Info.plist ]; then
-  cp Info.plist output/Payload/SideStore.app/Info.plist
+  cp Info.plist output/Payload/${APP_NAME}.app/Info.plist
 else
   echo "Info.plist not found in working directory" >&2
   exit 1
 fi
 
+# Package IPA
 cd output
-zip -qy1r SideStore_Nightly.ipa Payload
+zip -qy1r "$IPA_NAME" Payload
 cd ..
 
-if [ -f output/SideStore_Nightly.ipa ]; then
-  mv output/SideStore_Nightly.ipa SideStore_Nightly.ipa
-  echo "Created $SCRIPT_DIR/SideStore_Nightly.ipa"
+# Move IPA to script directory
+if [ -f output/"$IPA_NAME" ]; then
+  mv output/"$IPA_NAME" "$IPA_NAME"
+  echo "Created $SCRIPT_DIR/$IPA_NAME"
 else
   echo "IPA not found after zipping" >&2
   exit 1
 fi
 
+# Create checksum
 if command -v sha256sum >/dev/null 2>&1; then
-  sha256sum SideStore_Nightly.ipa > SideStore_Nightly.ipa.sha256
+  sha256sum "$IPA_NAME" > "$IPA_NAME".sha256
 elif command -v shasum >/dev/null 2>&1; then
-  shasum -a 256 SideStore_Nightly.ipa > SideStore_Nightly.ipa.sha256
+  shasum -a 256 "$IPA_NAME" > "$IPA_NAME".sha256
 elif command -v openssl >/dev/null 2>&1; then
-  openssl dgst -sha256 SideStore_Nightly.ipa | awk '{print $2 "  SideStore_Nightly.ipa"}' > SideStore_Nightly.ipa.sha256
+  openssl dgst -sha256 "$IPA_NAME" | awk '{print $2 "  '"$IPA_NAME"'"}' > "$IPA_NAME".sha256
 else
-  echo "No checksum tool available to create SideStore_Nightly.ipa.sha256" >&2
+  echo "No checksum tool available" >&2
   exit 1
 fi
 
-echo "Created checksum file: rahhh_SideStore.ipa.sha256"
+echo "Created checksum file: $IPA_NAME.sha256"
 
-if [ -f SideStore_Nightly.ipa ]; then
-  cp SideStore_Nightly.ipa "$REPO_ROOT/SideStore_Nightly.ipa" || true
-  echo "Copied IPA to repo root: $REPO_ROOT/SideStore_Nightly.ipa"
-fi
-if [ -f SideStore_Nightly.ipa.sha256 ]; then
-  cp SideStore_Nightly.ipa.sha256 "$REPO_ROOT/SideStore_Nightly.ipa.sha256" || true
-  echo "Copied checksum to repo root: $REPO_ROOT/SideStore_Nightly.ipa.sha256"
-fi
+# Copy to repo root
+cp "$IPA_NAME" "$REPO_ROOT/$IPA_NAME" || true
+cp "$IPA_NAME.sha256" "$REPO_ROOT/$IPA_NAME.sha256" || true
 
+# Validate IPA
 if command -v unzip >/dev/null 2>&1; then
-  unzip -t SideStore_Nightly.ipa
+  unzip -t "$IPA_NAME"
 else
-  echo "unzip not installed; skipping IPA archive validation" >&2
+  echo "unzip not installed; skipping IPA validation" >&2
 fi
 
 echo "Build finished. Files in script dir:"
