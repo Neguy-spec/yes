@@ -1,0 +1,33 @@
+name: SideStore IPA Build
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  compile_job:
+    runs-on: macos-latest
+    steps:
+      - name: Get Files
+        uses: actions/checkout@v4
+
+      - name: Build Unsigned App
+        run: |
+          mkdir -p Payload/rahhh.app
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          FRAMEWORKS_PATH="$SDK_PATH/System/Library/Frameworks"
+          
+          swiftc -sdk "$SDK_PATH" \
+                 -target arm64-apple-ios15.0 \
+                 -F "$FRAMEWORKS_PATH" \
+                 -parse-as-library \
+                 -O -o Payload/rahhh.app/rahhh \
+                 FILES/Sources/rahhh.swift
+                 
+          cp FILES/Info.plist Payload/rahhh.app/Info.plist
+          zip -qy1r rahhh_SideStore.ipa Payload
+
+      - name: Upload to GitHub Directly
+        uses: actions/upload-artifact@v4
+        with:
+          name: My_Finished_App
+          path: rahhh_SideStore.ipa
