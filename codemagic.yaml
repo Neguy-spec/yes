@@ -12,22 +12,35 @@ workflows:
       branch_patterns:
         - pattern: main
     scripts:
-      - name: Build and Package SwiftUI App
+      - name: Clean and Setup Directories
         script: |
-          mkdir -p build/Payload/rahhh.app
+          rm -rf build output
+          mkdir -p output/Payload/rahhh.app
+      - name: Compile and Package Unsigned SwiftUI App
+        script: |
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           FRAMEWORKS_PATH="$SDK_PATH/System/Library/Frameworks"
           
+          # Compile Swift code as an executable application binary layout
           swiftc -sdk "$SDK_PATH" \
                  -target arm64-apple-ios15.0 \
                  -F "$FRAMEWORKS_PATH" \
                  -parse-as-library \
-                 -O -o build/Payload/rahhh.app/rahhh \
+                 -O -o output/Payload/rahhh.app/rahhh \
                  Sources/rahhh.swift
                  
-          cp Info.plist build/Payload/rahhh.app/Info.plist
-          cd build
+          # Inject package properties metadata inside the application package bundle folder
+          cp Info.plist output/Payload/rahhh.app/Info.plist
+          
+          # Zip into an application installation package layout for SideStore processing
+          cd output
           zip -qy1r rahhh_SideStore.ipa Payload
-          rm -rf Payload
+      - name: Deploy to Main Root
+        script: |
+          # Move output back up to make sure artifact collector scans it successfully
+          mkdir -p ../build
+          cp output/rahhh_SideStore.ipa ../build/
     artifacts:
-      - FILES/build/*.ipa
+      - "build/*.ipa"
+      - "FILES/output/*.ipa"
+      - "*/.ipa"
