@@ -1,103 +1,11 @@
-name: New Nightly Release
-on:
-  repository_dispatch:
-    types: [codemagic-ipa-upload]
-
-permissions:
-  contents: write
-  actions: write
-
-jobs:
-  nightly_release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download release assets from Codemagic upload
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OWNER: Neguy-spec
-          REPO: yes
-          ASSET_NAMES_JSON: '${{ toJson(github.event.client_payload.asset_names) }}'
-        run: |
+      - name: Trigger GitHub Action for nightly release
+        script: |
           set -euo pipefail
-          TAG="${{ github.event.client_payload.tag_name }}"
-          echo "Looking up release for tag $TAG"
-          RELEASE_JSON=$(curl -sSL -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$OWNER/$REPO/releases/tags/$TAG")
-          echo "$RELEASE_JSON" > /tmp/release.json
-          ASSET_NAMES=$(python3 - <<'PY'
-import json, os
-names = json.loads(os.environ['ASSET_NAMES_JSON'])
-print('\n'.join(names))
-PY
-)
-          if [ -z "$ASSET_NAMES" ]; then
-            echo "No asset names provided in repository_dispatch payload" >&2
-            exit 1
-          fi
-          echo "Asset names:"
-          printf '%s\n' "$ASSET_NAMES"
-          while IFS= read -r ASSET_NAME; do
-            if [ -z "$ASSET_NAME" ]; then
-              continue
-            fi
-            ASSET_ID=$(python3 - <<'PY'
-import json, sys
-obj=json.load(open('/tmp/release.json'))
-for a in obj.get('assets', []):
-    if a.get('name') == sys.argv[1]:
-        print(a.get('id'))
-        sys.exit(0)
-sys.exit(1)
-PY
- "$ASSET_NAME")
-            if [ -z "$ASSET_ID" ]; then
-              echo "Asset ID not found for $ASSET_NAME" >&2
-              exit 1
-            fi
-            echo "Downloading $ASSET_NAME (ID: $ASSET_ID)"
-            curl -L -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/octet-stream" "https://api.github.com/repos/$OWNER/$REPO/releases/assets/$ASSET_ID" -o "$ASSET_NAME"
-          done <<EOF
-$ASSET_NAMES
-EOF
-          echo "Downloaded asset files:"
-          ls -la
 
-      - name: Validate downloaded assets
-        run: |
-          set -euo pipefail
-          for f in SideStore_Nightly.ipa SideStore_Nightly.ipa.sha256; do
-            if [ ! -f "$f" ]; then
-              echo "Required asset $f is missing" >&2
-              exit 1
-            fi
-          done
-          unzip -t SideStore_Nightly.ipa
-          sha256sum -c SideStore_Nightly.ipa.sha256
+          TAG_NAME="nightly-$(date +%Y%m%d%H%M%S)"
 
-      - name: Upload artifacts to Actions
-        uses: actions/upload-artifact@v4
-        with:
-          name: SideStore_Nightly
-          path: |
-            SideStore_Nightly.ipa
-            SideStore_Nightly.ipa.sha256
-
-      - name: Create nightly GitHub release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OWNER: Neguy-spec
-          REPO: yes
-        run: |
-          set -euo pipefail
-          NIGHTLY_TAG="nightly-$(date +'%Y%m%d%H%M%S')"
-          RELEASE_NAME="Nightly Release $NIGHTLY_TAG"
-          CREATE_RELEASE=$(curl -sSL -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -d '{"tag_name":"'"$NIGHTLY_TAG"'","name":"'"$RELEASE_NAME"'","body":"Nightly release from Codemagic build.","draft":false,"prerelease":false}' "https://api.github.com/repos/$OWNER/$REPO/releases")
-          UPLOAD_URL=$(echo "$CREATE_RELEASE" | python3 -c "import sys,json;obj=json.load(sys.stdin);print(obj.get('upload_url','').split('{')[0] if obj.get('upload_url') else '')")
-          if [ -z "$UPLOAD_URL" ]; then
-            echo "Failed to create nightly release: $CREATE_RELEASE" >&2
-            exit 1
-          fi
-          curl -sSL -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/zip" --data-binary @SideStore_Nightly.ipa "$UPLOAD_URL?name=SideStore_Nightly.ipa"
-          curl -sSL -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: text/plain" --data-binary @SideStore_Nightly.ipa.sha256 "$UPLOAD_URL?name=SideStore_Nightly.ipa.sha256"
+          curl -sSL -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"event_type\":\"codemagic-ipa-upload\",\"client_payload\":{\"tag_name\":\"$TAG_NAME\",\"asset_names\":[\"rahhh_SideStore.ipa\",\"rahhh_SideStore.ipa.sha256\"]}}" \
+            https://api.github.com/repos/Neguy-spec/yes/dispatches
