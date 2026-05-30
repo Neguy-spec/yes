@@ -12,7 +12,7 @@ workflows:
       branch_patterns:
         - pattern: main
     scripts:
-      - name: Clean and Setup Directories
+      - name: Clean and Setup Local Folders
         script: |
           rm -rf build output
           mkdir -p output/Payload/rahhh.app
@@ -21,7 +21,7 @@ workflows:
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           FRAMEWORKS_PATH="$SDK_PATH/System/Library/Frameworks"
           
-          # Compile Swift code as an executable application binary layout
+          # Compile Swift code directly into the local app folder bundle path
           swiftc -sdk "$SDK_PATH" \
                  -target arm64-apple-ios15.0 \
                  -F "$FRAMEWORKS_PATH" \
@@ -29,18 +29,17 @@ workflows:
                  -O -o output/Payload/rahhh.app/rahhh \
                  Sources/rahhh.swift
                  
-          # Inject package properties metadata inside the application package bundle folder
+          # Inject property metadata properties info
           cp Info.plist output/Payload/rahhh.app/Info.plist
           
-          # Zip into an application installation package layout for SideStore processing
+          # Zip into an application installation layout archive file folder
           cd output
           zip -qy1r rahhh_SideStore.ipa Payload
-      - name: Deploy to Main Root
+      - name: Force Export to Global Root
         script: |
-          # Move output back up to make sure artifact collector scans it successfully
-          mkdir -p ../build
-          cp output/rahhh_SideStore.ipa ../build/
+          # Copy the finished installation package directly out of subfolders into the main runner root folder path
+          cp output/rahhh_SideStore.ipa ../
     artifacts:
-      - "build/*.ipa"
-      - "FILES/output/*.ipa"
+      - "/*.ipa"
+      - "*.ipa"
       - "*/.ipa"
