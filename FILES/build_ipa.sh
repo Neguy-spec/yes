@@ -21,7 +21,6 @@ FRAMEWORKS_PATH="$SDK_PATH/System/Library/Frameworks"
 
 echo "SDK_PATH=$SDK_PATH"
 
-# Compile Swift source into app binary
 SOURCE_FILE="rahhh.swift"
 if [ ! -f "$SOURCE_FILE" ]; then
   echo "Source file $SOURCE_FILE not found in working directory $(pwd)" >&2
@@ -36,7 +35,6 @@ swiftc -sdk "$SDK_PATH" \
        -O -o output/Payload/rahhh.app/rahhh \
        "$SOURCE_FILE"
 
-# Copy Info.plist
 if [ -f Info.plist ]; then
   cp Info.plist output/Payload/rahhh.app/Info.plist
 else
@@ -44,12 +42,10 @@ else
   exit 1
 fi
 
-# Create IPA
 cd output
 zip -qy1r rahhh_SideStore.ipa Payload
 cd ..
 
-# Move IPA to script dir root so Codemagic artifact globs pick it up
 if [ -f output/rahhh_SideStore.ipa ]; then
   mv output/rahhh_SideStore.ipa rahhh_SideStore.ipa
   echo "Created $SCRIPT_DIR/rahhh_SideStore.ipa"
@@ -58,7 +54,6 @@ else
   exit 1
 fi
 
-# Create checksum file for the artifact
 if command -v sha256sum >/dev/null 2>&1; then
   sha256sum rahhh_SideStore.ipa > rahhh_SideStore.ipa.sha256
 elif command -v shasum >/dev/null 2>&1; then
@@ -72,7 +67,6 @@ fi
 
 echo "Created checksum file: rahhh_SideStore.ipa.sha256"
 
-# Also copy IPA and checksum to repository root so artifact collection works regardless of working_directory semantics
 if [ -f rahhh_SideStore.ipa ]; then
   cp rahhh_SideStore.ipa "$REPO_ROOT/rahhh_SideStore.ipa" || true
   echo "Copied IPA to repo root: $REPO_ROOT/rahhh_SideStore.ipa"
@@ -82,7 +76,6 @@ if [ -f rahhh_SideStore.ipa.sha256 ]; then
   echo "Copied checksum to repo root: $REPO_ROOT/rahhh_SideStore.ipa.sha256"
 fi
 
-# Validate the IPA archive immediately
 if command -v unzip >/dev/null 2>&1; then
   unzip -t rahhh_SideStore.ipa
 else
