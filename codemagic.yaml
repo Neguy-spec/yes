@@ -5,19 +5,36 @@ workflows:
     max_build_duration: 30
     environment:
       vars:
-        XCODE_WORKSPACE: "YourApp.xcworkspace" # Change to your .xcworkspace name
-        XCODE_SCHEME: "YourScheme"             # Change to your Xcode scheme name
+        XCODE_WORKSPACE: "YourApp.xcworkspace" # Change to your actual .xcworkspace name
+        XCODE_SCHEME: "YourScheme"             # Change to your actual Xcode scheme name
       xcode: latest
       cocoapods: default
     triggering:
       events:
         - push
       branch_patterns:
-        - pattern: main                        # Fixed: Changed 'target' to 'pattern'
+        - pattern: main
     scripts:
-      - name: Install CocoaPods dependencies
+      - name: Clean DerivedData
         script: |
-          pod install
+          # Clears previous build assets to avoid finding stale app bundles
+          rm -rf ~/Library/Developer/Xcode/DerivedData/*
+      - name: Resolve CocoaPods Dependencies
+        script: |
+          # Detect if Podfile is in root or ios/ folder and navigate there
+          if [ -f "ios/Podfile" ]; then
+            cd ios
+          elif [ ! -f "Podfile" ]; then
+            echo "Error: Podfile not found in root or ios/ directory!"
+            exit 1
+          fi
+          
+          # Force clear corrupted local caches and locks
+          rm -f Podfile.lock
+          rm -rf Pods
+          
+          # Install pods safely with repo update to fix missing dependencies
+          pod install --repo-update
       - name: Compile Unsigned Binary for SideStore
         script: |
           # Forces iOS compilation, disables signatures, and strips bitcode for SideStore compatibility
@@ -33,16 +50,24 @@ workflows:
             clean build
       - name: Package into SideStore IPA
         script: |
+          # Explicitly clear out old build outputs to guarantee fresh package
+          rm -rf build/ios/ipa
           mkdir -p build/ios/ipa/Payload
           
-          # Locates the built .app package
-          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "*.app" -type d | head -n 1)
+          # Target the specific scheme directory inside DerivedData to avoid grabbing wrong app files
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "$XCODE_SCHEME.app" -type d | head -n 1)
+          
+          # Fallback: find any built .app file if scheme directory naming differs
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "*.app" -type d | head -n 1)
+          fi
           
           if [ -z "$APP_PATH" ]; then
-            echo "Error: Built app binary not found!"
+            echo "Error: Built app binary (.app) not found in DerivedData!"
             exit 1
           fi
           
+          echo "Found app binary at: $APP_PATH"
           cp -r "$APP_PATH" build/ios/ipa/Payload/
           
           # Zips into a clean, SideStore-ready .ipa file
