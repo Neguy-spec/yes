@@ -1,0 +1,14 @@
+{
+      "name": "Swift Pre-built Environment",
+      "image": "swift:latest",
+      "customizations": {
+            "vscode": {
+                  "extensions": [
+                        "sswg.swift-lang"
+                  ],
+                  "settings": {
+                        "swift.path": "/usr/bin"
+                  }
+            }
+      }
+}

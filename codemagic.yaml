@@ -2,10 +2,11 @@ workflows:
   ios-app-sidestore:
     name: Unsigned iOS SideStore Build
     instance_type: mac_mini_m2
-    max_build_duration: 30
-    working_directory: FILES
+    max_build_duration: 60
+    working_directory: .
     environment:
       xcode: latest
+      cocoapods: false
     triggering:
       events:
         - push
@@ -14,32 +15,72 @@ workflows:
     scripts:
       - name: Clean and Setup Local Folders
         script: |
-          rm -rf build output
-          mkdir -p output/Payload/rahhh.app
+          set -euo pipefail
+          rm -rf FILES/output FILES/rahhh_SideStore.ipa FILES/rahhh_SideStore.ipa.sha256 rahhh_SideStore.ipa rahhh_SideStore.ipa.sha256
+          mkdir -p FILES/output/Payload/rahhh.app
+
       - name: Compile and Package Unsigned SwiftUI App
         script: |
-          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
-          FRAMEWORKS_PATH="$SDK_PATH/System/Library/Frameworks"
-          
-          # Compile Swift code directly into the local app folder bundle path
-          swiftc -sdk "$SDK_PATH" \
-                 -target arm64-apple-ios15.0 \
-                 -F "$FRAMEWORKS_PATH" \
-                 -parse-as-library \
-                 -O -o output/Payload/rahhh.app/rahhh \
-                 Sources/rahhh.swift
-                 
-          # Inject property metadata properties info
-          cp Info.plist output/Payload/rahhh.app/Info.plist
-          
-          # Zip into an application installation layout archive file folder
-          cd output
-          zip -qy1r rahhh_SideStore.ipa Payload
-      - name: Force Export to Global Root
+          set -euo pipefail
+          chmod +x FILES/build_ipa.sh
+          bash FILES/build_ipa.sh
+
+      - name: Verify artifact presence
         script: |
-          # Copy the finished installation package directly out of subfolders into the main runner root folder path
-          cp output/rahhh_SideStore.ipa ../
+          set -euo pipefail
+          echo "PWD: $(pwd)"
+          echo "Listing repo root contents:"
+          ls -la || true
+          echo "Listing FILES folder contents:"
+          ls -la FILES || true
+          echo "Listing output folder contents:"
+          ls -la FILES/output || true
+          [ -f rahhh_SideStore.ipa ] && echo "Found rahhh_SideStore.ipa at repo root"
+          [ -f rahhh_SideStore.ipa.sha256 ] && echo "Found rahhh_SideStore.ipa.sha256 at repo root"
+          [ -f FILES/rahhh_SideStore.ipa ] && echo "Found FILES/rahhh_SideStore.ipa"
+          [ -f FILES/rahhh_SideStore.ipa.sha256 ] && echo "Found FILES/rahhh_SideStore.ipa.sha256"
+
+      - name: Debug artifact globs
+        script: |
+          set -euo pipefail
+          echo "Checking exact artifact glob matches"
+          find . -path "./rahhh_SideStore.ipa" -o -path "./rahhh_SideStore.ipa.sha256" -o -path "./FILES/rahhh_SideStore.ipa" -o -path "./FILES/rahhh_SideStore.ipa.sha256" -o -path "./FILES/output/rahhh_SideStore.ipa" -o -path "./FILES/output/rahhh_SideStore.ipa.sha256" -o -name "rahhh_SideStore.ipa" -o -name "rahhh_SideStore.ipa.sha256" -print || true
+          echo "Matching all .ipa/.sha256 files in repo"
+          find . \( -name "*.ipa" -o -name "*.sha256" \) -print || true
+
+      - name: Publish to GitHub Releases and trigger dispatch
+
+        script: |
+          set -euo pipefail
+          if [ -z "${GITHUB_TOKEN:-}" ]; then
+            echo "GITHUB_TOKEN not set; skipping GitHub release upload and dispatch"
+            exit 0
+          fi
+
+          TAG_NAME="nightly-$(date +%Y%m%d%H%M%S)"
+          REPO_API="https://api.github.com/repos/Neguy-spec/yes"
+
+          CREATE_RESP=$(curl -s -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -d "{\"tag_name\":\"$TAG_NAME\",\"name\":\"Nightly Release $TAG_NAME\",\"body\":\"Nightly unsigned IPA from Codemagic\",\"draft\":false,\"prerelease\":false}" "$REPO_API/releases")
+          UPLOAD_URL=$(echo "$CREATE_RESP" | python3 -c "import sys,json;obj=json.load(sys.stdin);print(obj.get('upload_url','').split('{')[0] if obj.get('upload_url') else '')")
+          if [ -z "$UPLOAD_URL" ]; then
+            echo "Failed to create release: $CREATE_RESP" >&2
+            exit 1
+          fi
+
+          curl -sSL -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Content-Type: application/zip" --data-binary @rahhh_SideStore.ipa "$UPLOAD_URL?name=rahhh_SideStore.ipa"
+          if [ -f rahhh_SideStore.ipa.sha256 ]; then
+            curl -sSL -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Content-Type: text/plain" --data-binary @rahhh_SideStore.ipa.sha256 "$UPLOAD_URL?name=rahhh_SideStore.ipa.sha256"
+          else
+            echo "Checksum file rahhh_SideStore.ipa.sha256 missing" >&2
+            exit 1
+          fi
+
+          DISPATCH_RESP=$(curl -sSL -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -d "{\"event_type\":\"codemagic-ipa-upload\",\"client_payload\":{\"tag_name\":\"$TAG_NAME\",\"asset_names\":[\"rahhh_SideStore.ipa\",\"rahhh_SideStore.ipa.sha256\"]}}" "$REPO_API/dispatches")
+          echo "Dispatch response: $DISPATCH_RESP"
+
     artifacts:
-      - "/*.ipa"
-      - "*.ipa"
-      - "*/.ipa"
+      - rahhh_SideStore.ipa
+      - rahhh_SideStore.ipa.sha256
+      - FILES/rahhh_SideStore.ipa
+      - FILES/rahhh_SideStore.ipa.sha256
+      - FILES/output/*.ipa

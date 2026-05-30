@@ -1,41 +1,18 @@
-cat << 'EOF' > codemagic.yaml
-workflows:
-  ios-app-sidestore:
-    name: Unsigned iOS SideStore Build
-    instance_type: mac_mini_m2
-    max_build_duration: 30
-    working_directory: FILES
-    environment:
-      xcode: latest
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: main
-    scripts:
-      - name: Compile and Package Unsigned SwiftUI App
-        script: |
-          mkdir -p build/Payload/rahhh.app
-          
-          # Find the Apple iOS platform SDK paths
-          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
-          FRAMEWORKS_PATH="$SDK_PATH/System/Library/Frameworks"
-          
-          # Compile linking the SwiftUI library module flags
-          swiftc -sdk "$SDK_PATH" \
-                 -target arm64-apple-ios15.0 \
-                 -F "$FRAMEWORKS_PATH" \
-                 -parse-as-library \
-                 -O -o build/Payload/rahhh.app/rahhh \
-                 Sources/rahhh.swift
-          
-          # Inject the bundle metadata
-          cp Info.plist build/Payload/rahhh.app/Info.plist
-          
-          # Compress for SideStore distribution
-          cd build
-          zip -qy1r rahhh_SideStore.ipa Payload
-          rm -rf Payload
-    artifacts:
-      - FILES/build/*.ipa
-EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>com.neguyspec.yes</string>
+  <key>CFBundleName</key>
+  <string>rahhh</string>
+  <key>CFBundleDisplayName</key>
+  <string>Test App</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0</string>
+  <key>CFBundleExecutable</key>
+  <string>rahhh</string>
+</dict>
+</plist>
