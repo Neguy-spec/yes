@@ -34,12 +34,12 @@ swiftc -sdk "$SDK_PATH" \
        -target arm64-apple-ios15.0 \
        -F "$FRAMEWORKS_PATH" \
        -parse-as-library \
-       -O -o output/Payload/${APP_NAME}.app/${APP_NAME} \
+       -O -o output/Payload/${Test App}.app/${APP_NAME} \
        "$SOURCE_FILE"
 
 # Copy Info.plist
 if [ -f Info.plist ]; then
-  cp Info.plist output/Payload/${APP_NAME}.app/Info.plist
+  cp Info.plist output/Payload/${Test App}.app/Info.plist
 else
   echo "Info.plist not found in working directory" >&2
   exit 1
@@ -47,7 +47,7 @@ fi
 
 # Package IPA
 cd output
-zip -qy1r "$IPA_NAME" Payload
+zip -qy1r Test App.ipa Payload
 cd ..
 
 # Move IPA to script directory

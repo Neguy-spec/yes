@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "rahhhhhh",
+    name: "Test App",
     platforms: [
         .iOS(.v15)
     ],
     products: [
-        .executable(name: "rahhhhhh", targets: ["App"]),
+        .executable(name: "Test App", targets: ["App"]),
     ],
     targets: [
         .executableTarget(

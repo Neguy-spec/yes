@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct RahhhApp: App {
+struct TestApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -11,7 +11,7 @@ struct RahhhApp: App {
 
 struct ContentView: View {
     var body: some View {
-        Text("wsp danu")
+        Text("Testing")
             .padding()
     }
 }

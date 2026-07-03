@@ -1,6 +1,6 @@
 workflows:
   nightly-build-ios:
-    name: Hallo
+    name: Start
     instance_type: mac_mini_m2
     max_build_duration: 60
     working_directory: .
@@ -14,19 +14,19 @@ workflows:
         - pattern: main
 
     scripts:
-      - name: Clean and Setup Local Folders
+      - name: clean em up
         script: |
           set -euo pipefail
-          rm -rf FILES/output rahhhhhh_Nightly.ipa rahhhhhh_Nightly.ipa.sha256
+          rm -rf FILES/output Test App.ipa Test App.ipa.sha256
           mkdir -p FILES/output/Payload/rahhhhhh.app
 
-      - name: Compile and Package Unsigned Swift App
+      - name: compiling
         script: |
           set -euo pipefail
           chmod +x FILES/build_ipa.sh
           bash FILES/build_ipa.sh
 
-      - name: Verify artifact presence
+      - name: (useless but used to be useful part)
         script: |
           set -euo pipefail
           echo "PWD: $(pwd)"
@@ -35,7 +35,7 @@ workflows:
           ls -la FILES/output || true
 
     artifacts:
-      - rahhhhhh_Nightly.ipa
-      - rahhhhhh_Nightly.ipa.sha256
+      - Test App.ipa
+      - Test App.sha256
       - FILES/output/*.ipa
       - FILES/output/*.sha256
