@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleIdentifier</key>
-  <string>com.neguyspec.sidestore</string>
+  <string>com.neguyspec.TestApp</string>
 
   <key>CFBundleName</key>
-  <string>rahhhhhh</string>
+  <string>Test App</string>
 
   <key>CFBundleDisplayName</key>
-  <string>rahhhhhh</string>
+  <string>Test App</string>
 
   <key>CFBundleVersion</key>
   <string>1</string>
@@ -18,6 +18,6 @@
   <string>1.0</string>
 
   <key>CFBundleExecutable</key>
-  <string>SideStore</string>
+  <string>Test App</string>
 </dict>
 </plist>
